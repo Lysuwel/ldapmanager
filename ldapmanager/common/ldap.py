@@ -11,7 +11,7 @@ from ldap3 import HASHED_SALTED_SHA
 
 from ldap3.utils.hashed import hashed
 
-from configs import get_configs
+from ldapmanager.common.configs import get_configs
 
 # authenticating all ldap users
 def auth_login(username, password):
@@ -110,7 +110,7 @@ def add_group(conn, groupname, users):
     conn.bind()
     conn.add(group, ['groupOfUniqueNames', 'top'],
              {'uniqueMember': users_dn, 'cn': groupname})
-    print conn.result
+    print (conn.result)
     conn.unbind()
 
 def change_passwd(username, password, conn=None):
@@ -121,7 +121,7 @@ def change_passwd(username, password, conn=None):
     conn.modify(user,
                 {'userPassword': ('MODIFY_REPLACE',
                                   [hashed(HASHED_SALTED_SHA, password)])})
-    print conn.result
+    print (conn.result)
     conn.unbind()
     return True
 
@@ -132,7 +132,7 @@ def change_group_name(conn, old, new):
         conn.bind()
         old_dn = 'cn=%s,%s' % (old, get_configs('ldap')['group_base'])
         conn.modify_dn(old_dn, "cn="+new)
-        print conn.result
+        print (conn.result)
         conn.unbind()
         return True
 
@@ -159,7 +159,7 @@ def remove_user_from_group(conn, username, group):
     user = 'uid=%s,%s' % (username, get_configs('ldap')['account_base'])
     group = 'cn=%s,%s' % (group, get_configs('ldap')['group_base'])
     conn.modify(group, {'uniqueMember': (MODIFY_DELETE, user)})
-    print conn.result
+    print (conn.result)
     conn.unbind()
 
 def get_administrated_groups(conn, username):

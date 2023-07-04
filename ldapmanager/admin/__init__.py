@@ -1,1 +1,1 @@
-from url import adminblueprint
+from ldapmanager.admin.url  import adminblueprint

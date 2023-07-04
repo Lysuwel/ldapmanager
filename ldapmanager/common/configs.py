@@ -1,7 +1,7 @@
-import ConfigParser
+import configparser
 import os
 
-config = ConfigParser.RawConfigParser()
+config = configparser.RawConfigParser()
 path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "config/server.conf")
 config.read(path)
 
