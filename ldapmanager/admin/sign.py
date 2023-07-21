@@ -34,7 +34,7 @@ class Login(MethodView):
                 session['username'] = username
                 return redirect(url_for('admin.index'))
             else:
-                return "DOCS"
+                return "User is not admin"
         return "NO SUCH USER OR PASSWORD INCORRECT"
 
 

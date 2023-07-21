@@ -9,7 +9,7 @@ from datetime import timedelta
 class Redis():
     @staticmethod
     def get_connection():
-        conn = redis.StrictRedis(host='localhost', port=6379, db=0)
+        conn = redis.StrictRedis(host='172.16.104.102', port=6379, db=10,password='redis@yyjh!123')
         return conn
 
     @staticmethod
@@ -48,7 +48,7 @@ class User(object):
 
         config = configs.get_configs('ldap')
         self.admin_conn = ldap.get_admin_conn()
-        if username == "admin" and password == config['admin_password']:
+        if username == config['admin_name'] and password == config['admin_password']:
             self.manager_conn = self.admin_conn
             self.is_admin = True
             self.is_administrator = True

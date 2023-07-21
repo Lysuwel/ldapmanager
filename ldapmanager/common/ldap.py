@@ -52,6 +52,23 @@ def list_users(conn=None, user=None):
     conn.unbind()
     return entry
 
+def get_group_gidNumber(conn, group=None):
+    conn.bind()
+    conf = get_configs('ldap')
+    if group:
+        filter = '(cn=%s)' % group
+    else:
+        filter = '(objectClass=*)'
+    entry = conn.extend.standard.paged_search(conf['group_base'],
+                                              filter,
+                                              search_scope=SUBTREE)
+    if entry:
+        group_result = [item['dn'] for item in entry]
+    else:
+        group_result = []
+    conn.unbind()
+    return group_result
+
 def get_group(conn, group=None):
     conn.bind()
     conf = get_configs('ldap')
@@ -68,6 +85,7 @@ def get_group(conn, group=None):
         group_result = []
     conn.unbind()
     return group_result
+
 
 def add_user(conn, username, groupname, mail=None):
     # TODO: Either modify groups from objectClass: groupOfUniqueNames to
@@ -104,12 +122,17 @@ def add_user(conn, username, groupname, mail=None):
 
 def add_group(conn, groupname, users):
     group = 'cn=%s,%s' % (groupname, get_configs('ldap')['group_base'])
-    users_dn = map(lambda x: 'uid=%s,%s' %
-                  (x, get_configs('ldap')['account_base']),
-                  users)
+
+    # users_dn = map(lambda x: 'uid=%s,%s' %
+    #               (x, get_configs('ldap')['account_base']),
+    #               users)
     conn.bind()
-    conn.add(group, ['groupOfUniqueNames', 'top'],
-             {'uniqueMember': users_dn, 'cn': groupname})
+    conn.search(search_base=group,
+                search_filter='(objectClass=posixGroup)',
+                search_scope=SUBTREE, attributes=['gidNumber'])
+    groupGid=conn.response[0]['attributes']['gidNumber']
+    conn.add(group, ['posixGroup', 'top'],
+             {'gidNumber': groupGid, 'cn': groupname})
     print (conn.result)
     conn.unbind()
 
@@ -158,7 +181,7 @@ def remove_user_from_group(conn, username, group):
     conn.bind()
     user = 'uid=%s,%s' % (username, get_configs('ldap')['account_base'])
     group = 'cn=%s,%s' % (group, get_configs('ldap')['group_base'])
-    conn.modify(group, {'uniqueMember': (MODIFY_DELETE, user)})
+    conn.modify(group, {'gidNumber': (MODIFY_DELETE, user)})
     print (conn.result)
     conn.unbind()
 
@@ -169,10 +192,10 @@ def get_administrated_groups(conn, username):
     leaders_group_name = get_configs('ldap')['leaders_group_name']
     user = 'uid=%s,%s' % (username, get_configs('ldap')['account_base'])
     conn.search(search_base=leaders_group_name,
-                search_filter='(objectClass=groupOfUniqueNames)',
-                search_scope=SUBTREE, attributes=['uniqueMember'])
+                search_filter='(objectClass=posixGroup)',
+                search_scope=SUBTREE, attributes=['gidNumber'])
     for entry in conn.response:
-        if user in entry['attributes']['uniqueMember']:
+        if user in entry['attributes']['gidNumber']:
             is_leader = True
     if is_leader:
         return get_groups_with_user(conn=conn, user_dn=user,
@@ -185,14 +208,14 @@ def get_groups_with_user(conn, user_dn=None, leaders_group_dn=None, username=Non
     conn.bind()
     groups = []
     conn.search(search_base=get_configs('ldap')['group_base'],
-                search_filter='(objectClass=groupOfUniqueNames)',
-                search_scope=SUBTREE, attributes=['uniqueMember'])
+                search_filter='(objectClass=posixGroup)',
+                search_scope=SUBTREE, attributes=['gidNumber'])
     if not user_dn:
         if not username:
             return None
         user_dn = 'uid=%s,%s' % (username, get_configs('ldap')['account_base'])
     for group in conn.response:
-        if user_dn in group['attributes']['uniqueMember'] and \
+        if user_dn in group['attributes']['gidNumber'] and \
         group['dn'] != leaders_group_dn:
             groups.append(group['dn'])
     conn.unbind()
@@ -217,12 +240,12 @@ def get_group_users(conn, group_name):
     group = 'cn=%s,%s' % (group_name, get_configs('ldap')['group_base'])
     conn.bind()
     conn.search(search_base=group,
-                search_filter='(objectClass=groupOfUniqueNames)',
-                search_scope=SUBTREE, attributes=['uniqueMember'])
+                search_filter='(objectClass=posixGroup)',
+                search_scope=SUBTREE, attributes=['gidNumber'])
     response = conn.response
     if not response:
         return []
-    users = conn.response[0]['attributes']['uniqueMember']
+    users = conn.response[0]['attributes']['gidNumber']
     conn.unbind()
     return users
 
@@ -230,8 +253,8 @@ def filter_admin_users(conn, users):
     conn.bind()
     conn.search(search_base=get_configs('ldap')['leaders_group_name'],
                 search_filter='(objectClass=*)',
-                search_scope=SUBTREE, attributes=['uniqueMember'])
-    admins = conn.response[0]['attributes']['uniqueMember']
+                search_scope=SUBTREE, attributes=['gidNumber'])
+    admins = conn.response[0]['attributes']['gidNumber']
     admin_users = []
     if not users:
         return None
